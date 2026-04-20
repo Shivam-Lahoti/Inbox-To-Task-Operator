@@ -1,7 +1,70 @@
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+USE_REAL_LLM = os.getenv("USE_REAL_LLM", "false").lower() == "true"
+
+
 def summarize_email(email: dict) -> str:
     """
-    Lightweight rule-based summarizer for the MVP.
-    Replace with a real LLM call later if needed.
+    Use a real LLM if enabled, otherwise fall back to a rule-based summarizer.
+    """
+    if USE_REAL_LLM:
+        try:
+            return _summarize_with_openai(email)
+        except Exception as e:
+            print(f"[LLM fallback] Failed to use real LLM: {e}")
+            return _summarize_rule_based(email)
+
+    return _summarize_rule_based(email)
+
+
+def _summarize_with_openai(email: dict) -> str:
+    """
+    Real LLM-based summarization using OpenAI.
+    """
+    from openai import OpenAI
+
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("OPENAI_API_KEY is not set in environment variables.")
+
+    client = OpenAI(api_key=api_key)
+
+    subject = email.get("subject", "").strip()
+    body = email.get("body", "").strip()
+
+    prompt = f"""
+Summarize the following email in one concise sentence.
+Focus on the sender's intent and any action requested.
+
+Subject: {subject}
+Body: {body}
+""".strip()
+
+    response = client.chat.completions.create(
+        model="gpt-4.1-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a concise assistant that summarizes emails clearly."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        temperature=0.2,
+    )
+
+    return response.choices[0].message.content.strip()
+
+
+def _summarize_rule_based(email: dict) -> str:
+    """
+    Lightweight rule-based summarizer for fallback / deterministic testing.
     """
     subject = email.get("subject", "").strip()
     body = email.get("body", "").strip()
@@ -32,8 +95,6 @@ def generate_reply(email: dict, summary: str, task: dict) -> str:
     """
     Generate a simple contextual reply draft.
     """
-    sender = email.get("from", "sender")
-    subject = email.get("subject", "")
     action = task.get("action", "respond")
     context = task.get("context", "").lower()
 

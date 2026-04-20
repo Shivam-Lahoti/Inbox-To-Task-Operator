@@ -131,6 +131,13 @@ That means the pipeline is optimized around:
 
 ---
 
+## Quick Start
+
+```bash
+pip install -r requirements.txt && python main.py data/sample_inbox.json
+```
+
+
 ## 🔁 Detailed Per-Email Execution Flow
 
 Each email moves through a multi-step decision path.
