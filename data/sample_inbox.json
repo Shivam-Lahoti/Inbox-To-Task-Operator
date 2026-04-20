@@ -1,0 +1,32 @@
+[
+  {
+    "id": "001",
+    "from": "recruiter@startup.com",
+    "subject": "Interview Availability",
+    "body": "Hi Shivam, are you available Thursday or Friday for a quick call to discuss the backend engineer role?"
+  },
+  {
+    "id": "002",
+    "from": "newsletter@company.com",
+    "subject": "Weekly Product Update",
+    "body": "Here’s everything we shipped this week. New features, performance improvements, and bug fixes."
+  },
+  {
+    "id": "003",
+    "from": "manager@company.com",
+    "subject": "Need project update ASAP",
+    "body": "Can you send me a clear project status update and revised timeline today? This is urgent."
+  },
+  {
+    "id": "004",
+    "from": "client@business.com",
+    "subject": "Following up on proposal",
+    "body": "Hi, just following up on the proposal we discussed last week. Let me know your thoughts."
+  },
+  {
+    "id": "005",
+    "from": "hr@company.com",
+    "subject": "Please share documents",
+    "body": "Could you send over your updated resume and relevant documents for our records?"
+  }
+]
