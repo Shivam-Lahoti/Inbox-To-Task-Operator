@@ -13,7 +13,7 @@ def summarize_email(email: dict) -> str:
     """
     if USE_REAL_LLM:
         try:
-            return _summarize_with_openai(email)
+            return _summarize_with_llm(email)
         except Exception as e:
             print(f"[LLM fallback] Failed to use real LLM: {e}")
             return _summarize_rule_based(email)
@@ -21,7 +21,7 @@ def summarize_email(email: dict) -> str:
     return _summarize_rule_based(email)
 
 
-def _summarize_with_openai(email: dict) -> str:
+def _summarize_with_llm(email: dict) -> str:
     """
     Real LLM-based summarization using OpenAI.
     """

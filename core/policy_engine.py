@@ -32,5 +32,5 @@ def decide_action(classification: dict) -> str:
     if priority == "MEDIUM" and action_required:
         return "DRAFT"
 
-    # Default fallback
-    return "AUTO"
+    # Default fallback (fail-safe approach)
+    return "ESCALATE"
