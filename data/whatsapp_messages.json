@@ -1,0 +1,23 @@
+[
+  {
+    "whatsapp_id": "whatsapp_001",
+    "contact_name": "Ananya",
+    "phone": "+1-555-123-9999",
+    "timestamp": "2026-04-21T18:45:00",
+    "message": "Hey Shivam, just confirming you are open to healthcare AI roles and backend-heavy work?"
+  },
+  {
+    "whatsapp_id": "whatsapp_002",
+    "contact_name": "Ben",
+    "phone": "+1-555-888-2222",
+    "timestamp": "2026-04-20T12:10:00",
+    "message": "The Akamai role is more web services and internet infrastructure focused, so Java and SQL experience matter."
+  },
+  {
+    "whatsapp_id": "whatsapp_003",
+    "contact_name": "Ananya FinEdge",
+    "phone": "+1-555-777-3333",
+    "timestamp": "2026-04-17T09:30:00",
+    "message": "The fintech role is payments-heavy and involves Kafka, transactions, and backend reliability."
+  }
+]

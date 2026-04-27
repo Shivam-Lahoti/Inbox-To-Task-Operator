@@ -77,3 +77,19 @@ def normalize_all_sources(raw_sources: dict[str, list[dict]]) -> list[Normalized
         normalized.append(normalize_sms(item))
 
     return normalized
+
+
+def normalize_incoming(source: str, raw: dict) -> NormalizedMessage:
+    if source == "email":
+        return normalize_email(raw)
+
+    if source == "linkedin":
+        return normalize_linkedin(raw)
+
+    if source == "whatsapp":
+        return normalize_whatsapp(raw)
+
+    if source == "sms":
+        return normalize_sms(raw)
+
+    raise ValueError(f"Unsupported incoming source: {source}")

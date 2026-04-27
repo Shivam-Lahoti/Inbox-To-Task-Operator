@@ -1,0 +1,47 @@
+[
+  {
+    "email_id": "email_001",
+    "from_name": "Ananya Sharma",
+    "from_email": "ananya@healthai.com",
+    "to_email": "shivam@example.com",
+    "subject": "Applied AI Engineer Role",
+    "timestamp": "2026-04-20T10:30:00",
+    "body": "Hi Shivam, thanks for applying. We liked your backend and AI project experience. Are you available this week for a quick intro call?"
+  },
+  {
+    "email_id": "email_002",
+    "from_name": "Ben Matthews",
+    "from_email": "ben@akamai.com",
+    "to_email": "shivam@example.com",
+    "subject": "Junior Engineer Opening",
+    "timestamp": "2026-04-19T09:15:00",
+    "body": "Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services."
+  },
+  {
+    "email_id": "email_003",
+    "from_name": "Ananya Sharma",
+    "from_email": "ananya@healthai.com",
+    "to_email": "shivam@example.com",
+    "subject": "Healthcare AI Backend Discussion",
+    "timestamp": "2026-04-21T16:00:00",
+    "body": "The role is backend-heavy and involves building APIs for healthcare workflows, integrating LLM features, and working with patient-document automation."
+  },
+  {
+    "email_id": "email_004",
+    "from_name": "Priya Mehta",
+    "from_email": "priya@newstartup.com",
+    "to_email": "shivam@example.com",
+    "subject": "Founding Engineer Role",
+    "timestamp": "2026-04-23T13:15:00",
+    "body": "Hi Shivam, I came across your profile and wanted to discuss a founding engineer role at our startup."
+  },
+  {
+    "email_id": "email_005",
+    "from_name": "Ananya Sharma",
+    "from_email": "ananya@finedge.com",
+    "to_email": "shivam@example.com",
+    "subject": "Fintech Backend Engineer Role",
+    "timestamp": "2026-04-16T15:30:00",
+    "body": "Hi Shivam, we are hiring for a fintech backend engineer role focused on payments, Java, Kafka, and distributed systems."
+  }
+]

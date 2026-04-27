@@ -1,0 +1,57 @@
+[
+  {
+    "case_id": "case_001_healthai_recruiter",
+    "description": "Happy path: HealthAI recruiter matched across email, LinkedIn, WhatsApp, and SMS.",
+    "incoming_source": "email",
+    "incoming": {
+      "email_id": "incoming_001",
+      "from_name": "Ananya Sharma",
+      "from_email": "ananya@healthai.com",
+      "to_email": "shivam@example.com",
+      "subject": "Intro Call Tomorrow",
+      "timestamp": "2026-04-22T12:30:00",
+      "body": "Hi Shivam, are you free tomorrow afternoon for a quick call to discuss the Applied AI Engineer role?"
+    }
+  },
+  {
+    "case_id": "case_002_same_name_conflict",
+    "description": "Same name conflict: Ananya Sharma from FinEdge should not merge with HealthAI Ananya.",
+    "incoming_source": "linkedin",
+    "incoming": {
+      "linkedin_id": "incoming_002",
+      "profile_name": "Ananya Sharma",
+      "profile_handle": "ananya-fintech",
+      "company": "FinEdge",
+      "timestamp": "2026-04-22T09:45:00",
+      "message": "Hi Shivam, are you open to fintech backend roles focused on payments and distributed systems?"
+    }
+  },
+  {
+    "case_id": "case_003_ben_akamai",
+    "description": "Different person: Ben from Akamai should retrieve Java, Angular, SQL, Docker context.",
+    "incoming_source": "email",
+    "incoming": {
+      "email_id": "incoming_003",
+      "from_name": "Ben Matthews",
+      "from_email": "ben@akamai.com",
+      "to_email": "shivam@example.com",
+      "subject": "Following up on junior engineer role",
+      "timestamp": "2026-04-23T10:00:00",
+      "body": "Hi Shivam, wanted to check if you are still interested in the junior engineer role involving Java, Angular, SQL, Docker, and web services."
+    }
+  },
+  {
+    "case_id": "case_004_unknown_person",
+    "description": "Unknown sender: should not retrieve unrelated relationship history.",
+    "incoming_source": "email",
+    "incoming": {
+      "email_id": "incoming_004",
+      "from_name": "Priya Mehta",
+      "from_email": "priya@newstartup.com",
+      "to_email": "shivam@example.com",
+      "subject": "Founding engineer role",
+      "timestamp": "2026-04-23T13:15:00",
+      "body": "Hi Shivam, I came across your profile and wanted to discuss a founding engineer role at our startup."
+    }
+  }
+]

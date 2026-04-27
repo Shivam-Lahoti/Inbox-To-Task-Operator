@@ -3,5 +3,15 @@
     "style": "concise, professional, warm",
     "avoid": "long paragraphs, sounding desperate, overexplaining",
     "examples": []
+  },
+  "Ananya Sharma": {
+    "style": "concise, professional, warm",
+    "avoid": "long paragraphs, sounding desperate, overexplaining",
+    "examples": [
+      {
+        "original_draft": "**Subject:** Re: Quick call tomorrow afternoon\n\nHi Ananya,\n\nYes, I'm available tomorrow afternoon. What time works best for you?\n\nLooking forward to discussing the role.\n\nBest,\nShivam\n\n---\n\n**Note:** Reply ready for review. Please confirm before sending.",
+        "edited_draft": "I will look into i"
+      }
+    ]
   }
 }

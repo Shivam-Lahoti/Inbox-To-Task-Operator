@@ -1,0 +1,23 @@
+[
+  {
+    "sms_id": "sms_001",
+    "contact_name": "Ananya Sharma",
+    "phone": "+1-555-123-9999",
+    "timestamp": "2026-04-22T08:10:00",
+    "message": "Hi Shivam, tomorrow afternoon works if you are free for the intro call."
+  },
+  {
+    "sms_id": "sms_002",
+    "contact_name": "Ben Matthews",
+    "phone": "+1-555-888-2222",
+    "timestamp": "2026-04-21T15:45:00",
+    "message": "Can you send a short note on your Java, Docker, and web services experience?"
+  },
+  {
+    "sms_id": "sms_003",
+    "contact_name": "Ananya Sharma",
+    "phone": "+1-555-777-3333",
+    "timestamp": "2026-04-18T10:20:00",
+    "message": "Would you be open to a fintech backend role instead of healthcare AI?"
+  }
+]
