@@ -5,11 +5,6 @@ load_dotenv()
 
 
 def fallback_reply(prompt: str, person_name: str | None = None) -> str:
-    """
-    Deterministic fallback so the demo never breaks.
-    Uses dynamic person name if available.
-    """
-
     name = person_name.split()[0] if person_name else "there"
 
     return (
@@ -24,42 +19,37 @@ def fallback_reply(prompt: str, person_name: str | None = None) -> str:
 
 def generate_with_provider(prompt: str) -> str:
     """
-    Generic LLM provider call.
-    Currently uses OpenAI under the hood,
-    but intentionally abstracted for extensibility.
+    Generic LLM provider call using Anthropic (Claude)
     """
 
-    from openai import OpenAI
+    import anthropic
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    model = os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
 
     if not api_key:
-        raise ValueError("Missing API key")
+        raise ValueError("Missing ANTHROPIC_API_KEY")
 
-    client = OpenAI(api_key=api_key)
+    client = anthropic.Anthropic(api_key=api_key)
 
-    response = client.responses.create(
+    response = client.messages.create(
         model=model,
-        input=[
+        max_tokens=300,
+        temperature=0.3,
+        messages=[
             {
-                "role": "system",
+                "role": "user",
                 "content": (
                     "You are a relationship-aware reply operator. "
                     "Generate concise, professional replies using only provided context. "
-                    "Do not hallucinate. Do not auto-send."
+                    "Do not hallucinate. Do not auto-send.\n\n"
+                    f"{prompt}"
                 )
-            },
-            {
-                "role": "user",
-                "content": prompt
             }
-        ],
-        temperature=0.3,
-        max_output_tokens=350
+        ]
     )
 
-    return response.output_text.strip()
+    return response.content[0].text.strip()
 
 
 def generate_with_llm(prompt: str, person_name: str | None = None) -> str:

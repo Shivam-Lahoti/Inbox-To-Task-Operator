@@ -22,3 +22,6 @@ def load_all_sources() -> dict[str, list[dict]]:
         "whatsapp": load_json_file("whatsapp_messages.json"),
         "sms": load_json_file("sms_messages.json")
     }
+
+def load_test_cases() -> list[dict]:
+    return load_json_file("test_cases.json")

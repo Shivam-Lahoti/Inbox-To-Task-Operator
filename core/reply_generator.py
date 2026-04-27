@@ -90,5 +90,4 @@ def generate_reply(
     return generate_with_llm(
         prompt=prompt,
         person_name=incoming_message.person_name
-     person_name=incoming_message.person_name
-)
+     )
