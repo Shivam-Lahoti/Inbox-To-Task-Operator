@@ -1,28 +1,15 @@
 [
   {
-    "chunk_id": "email_email_001",
+    "chunk_id": "email_email_002",
     "source": "email",
-    "person_name": "Ananya Sharma",
-    "email": "ananya@healthai.com",
+    "person_name": "Ben Matthews",
+    "email": "ben@akamai.com",
     "phone": null,
     "handle": null,
     "company": null,
-    "timestamp": "2026-04-20T10:30:00",
-    "subject": "Applied AI Engineer Role",
-    "text": "Hi Shivam, thanks for applying. We liked your backend and AI project experience. Are you available this week for a quick intro call?",
-    "search_text": "Ananya Sharma  Applied AI Engineer Role Hi Shivam, thanks for applying. We liked your backend and AI project experience. Are you available this week for a quick intro call? email"
-  },
-  {
-    "chunk_id": "email_email_003",
-    "source": "email",
-    "person_name": "Ananya Sharma",
-    "email": "ananya@healthai.com",
-    "phone": null,
-    "handle": null,
-    "company": null,
-    "timestamp": "2026-04-21T16:00:00",
-    "subject": "Healthcare AI Backend Discussion",
-    "text": "The role is backend-heavy and involves building APIs for healthcare workflows, integrating LLM features, and working with patient-document automation.",
-    "search_text": "Ananya Sharma  Healthcare AI Backend Discussion The role is backend-heavy and involves building APIs for healthcare workflows, integrating LLM features, and working with patient-document automation. email"
+    "timestamp": "2026-04-19T09:15:00",
+    "subject": "Junior Engineer Opening",
+    "text": "Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services.",
+    "search_text": "Ben Matthews  Junior Engineer Opening Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services. email"
   }
 ]
