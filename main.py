@@ -1,9 +1,12 @@
+import sys
+from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
+from rich.prompt import Prompt, Confirm
+
 from core.logger import OperatorLogger
 from core.source_loader import load_all_sources, load_test_cases
-from core.normalizer import normalize_all_sources, normalize_email,normalize_incoming
+from core.normalizer import normalize_all_sources, normalize_incoming
 from core.person_resolution import resolve_person
 from core.chunker import build_chunks
 from core.retriever import retrieve_context
@@ -12,367 +15,309 @@ from core.tone_profile import get_tone_profile
 from core.reply_generator import generate_reply
 from core.feedback_learning import learn_from_user_edit
 
+from connectors.gmail_connector import GmailConnector
+from connectors.twilio_connector import TwilioConnector
+
 
 console = Console()
 
 
-def select_test_case():
-    test_cases = load_test_cases()
-
-    console.print("\n[bold cyan]Available Test Cases[/bold cyan]")
-
-    table = Table(title="Demo Scenarios")
-    table.add_column("Option")
-    table.add_column("Case ID")
-    table.add_column("Description")
-
-    for idx, case in enumerate(test_cases, start=1):
-        table.add_row(
-            str(idx),
-            case["case_id"],
-            case["description"]
-        )
-
-    console.print(table)
-
-    choice = input("\nSelect test case number: ").strip()
-
-    if not choice:
-        return test_cases[0]
-
-    index = int(choice) - 1
-
-    if index < 0 or index >= len(test_cases):
-        raise ValueError("Invalid test case selected")
-
-    return test_cases[index]
+def print_header():
+    """Print application header"""
+    console.print(Panel.fit(
+        "[bold cyan]Cross-Channel Relationship-Aware Reply Operator[/bold cyan]\n"
+        "[dim]Intelligent replies using multi-platform context[/dim]",
+        border_style="cyan"
+    ))
 
 
-def build_incoming_message():
-    test_case = select_test_case()
-
-    console.print(
-        Panel(
-            f"Case: {test_case['case_id']}\n"
-            f"{test_case['description']}",
-            title="Selected Test Case",
-            style="cyan"
-        )
-    )
-
-    return normalize_incoming(
-        source=test_case["incoming_source"],
-        raw=test_case["incoming"]
-    )
-
-
-def print_resolved_people(resolved_matches):
-    table = Table(title="Person Resolution Results")
-    table.add_column("Source")
-    table.add_column("Name")
-    table.add_column("Email")
-    table.add_column("Phone")
-    table.add_column("Handle")
-    table.add_column("Company")
-    table.add_column("Score")
-    table.add_column("Reasons")
-
-    for msg, score, reasons in resolved_matches:
-        table.add_row(
-            msg.source,
-            msg.person_name,
-            msg.email or "-",
-            msg.phone or "-",
-            msg.handle or "-",
-            msg.company or "-",
-            str(score),
-            ", ".join(reasons)
-        )
-
-    console.print(table)
-
-
-def print_rag_results(rag_results):
-    table = Table(title="RAG Retrieved Context")
-    table.add_column("Source")
-    table.add_column("Timestamp")
-    table.add_column("Score")
-    table.add_column("Text")
-
-    for item in rag_results:
-        table.add_row(
-            item["source"],
-            item["timestamp"],
-            str(item["rag_score"]),
-            item["text"][:90]
-        )
-
-    console.print(table)
-
-
-def run_operator():
+def demo_mode():
+    """Run in demo mode with test cases"""
     logger = OperatorLogger()
-
-    console.print(
-        Panel.fit(
-            "Cross-Channel Relationship-Aware Reply Operator",
-            style="bold cyan"
-        )
-    )
-
-    logger.log(
-        step="START",
-        message="Operator started"
-    )
-
+    
+    logger.log("START", "Starting operator in DEMO mode")
+    
+    # Load sources
+    logger.log("SOURCE_LOADING", "Loading historical messages from all platforms")
     raw_sources = load_all_sources()
-
-    logger.log(
-        step="SOURCE_LOADING",
-        message="Loaded raw messages from all connected mock sources",
-        data={
-            source: len(messages)
-            for source, messages in raw_sources.items()
-        }
-    )
-
-    normalized_messages = normalize_all_sources(raw_sources)
-
-    logger.log(
-        step="NORMALIZATION",
-        message="Converted all source-specific records into common NormalizedMessage schema",
-        data={
-            "total_normalized_messages": len(normalized_messages),
-            "sources": list(raw_sources.keys())
-        }
-    )
-
-    incoming_message = build_incoming_message()
-
-    logger.log(
-        step="INCOMING_MESSAGE",
-        message="Selected incoming message as current trigger",
-        data={
-            "source": incoming_message.source,
-            "person_name": incoming_message.person_name,
-            "email": incoming_message.email,
-            "phone": incoming_message.phone,
-            "handle": incoming_message.handle,
-            "company": incoming_message.company,
-            "subject": incoming_message.subject,
-            "text": incoming_message.text
-        }
-    )
-
-    console.print("\n[bold]Incoming Message[/bold]")
-    console.print(
-        Panel(
-            f"From: {incoming_message.person_name}\n"
-            f"Source: {incoming_message.source}\n"
-            f"Subject: {incoming_message.subject}\n\n"
-            f"{incoming_message.text}"
-        )
-    )
-
-    resolved_matches = resolve_person(
-        incoming=incoming_message,
-        all_messages=normalized_messages
-    )
-
-    logger.log(
-        step="PERSON_RESOLUTION",
-        message="Resolved likely same-person records across channels",
-        data=[
-            {
-                "source": msg.source,
-                "name": msg.person_name,
-                "email": msg.email,
-                "phone": msg.phone,
-                "handle": msg.handle,
-                "company": msg.company,
-                "score": score,
-                "reasons": reasons,
-                "text_preview": msg.text[:120]
-            }
-            for msg, score, reasons in resolved_matches
-        ]
-    )
-
-    print_resolved_people(resolved_matches)
-
-    if not resolved_matches:
-        logger.log(
-            step="SAFETY_GUARD",
-            message="No reliable identity match found. Avoiding unrelated context leakage.",
-            data={
-                "action": "Using only incoming message as context"
-            }
-        )
-
-        console.print(
-            Panel(
-                "No reliable cross-channel identity match found.\n"
-                "Using only the incoming message context to avoid wrong-person leakage.",
-                style="yellow"
-            )
-        )
-
-        resolved_messages = [incoming_message]
-
-    else:
-        resolved_messages = [match[0] for match in resolved_matches]
-
+    
+    # Normalize
+    logger.log("NORMALIZATION", "Normalizing messages to common schema")
+    all_messages = normalize_all_sources(raw_sources)
+    
+    # Load test cases
+    test_cases = load_test_cases()
+    
+    if not test_cases:
+        console.print(" No test cases found in data/test_cases.json")
+        return
+    
+    # Select test case
+    console.print("\n[bold]Available Test Cases:[/bold]")
+    for idx, case in enumerate(test_cases, 1):
+        console.print(f"{idx}. {case.get('description', 'Test case')}")
+    
+    choice = Prompt.ask("\nSelect test case", choices=[str(i) for i in range(1, len(test_cases) + 1)])
+    selected_case = test_cases[int(choice) - 1]
+    
+    # Normalize incoming
+    logger.log("INCOMING_MESSAGE", f"Processing incoming {selected_case['source']} message")
+    incoming = normalize_incoming(selected_case["source"], selected_case)
+    
+    console.print(f"\n[bold]Incoming Message:[/bold]")
+    console.print(f"From: {incoming.person_name}")
+    console.print(f"Source: {incoming.source}")
+    console.print(f"Subject: {incoming.subject}")
+    console.print(f"Body: {incoming.text[:200]}...")
+    
+    # Resolve person
+    logger.log("PERSON_RESOLUTION", f"Resolving identity for {incoming.person_name}")
+    resolved = resolve_person(incoming, all_messages)
+    
+    if not resolved:
+        logger.log("SAFETY_GUARD", "No strong identity match found", {
+            "person": incoming.person_name,
+            "action": "Using only incoming message context"
+        })
+        resolved = [(incoming, 1.0, ["incoming message"])]
+    
+    console.print(f"\n[bold]Identity Resolution:[/bold]")
+    console.print(f"Found {len(resolved)} matching messages across platforms")
+    
+    sources_found = set()
+    for msg, score, reasons in resolved[:5]:
+        sources_found.add(msg.source)
+        console.print(f"  • [{msg.source}] {msg.person_name} (confidence: {score}) - {', '.join(reasons)}")
+    
+    # Build chunks
+    logger.log("CHUNKING", "Building searchable chunks from resolved messages")
+    resolved_messages = [msg for msg, _, _ in resolved]
     chunks = build_chunks(resolved_messages)
+    
+    # Retrieve context
+    query = f"{incoming.subject or ''} {incoming.text}"
+    logger.log("RAG_QUERY", f"RAG query: {query[:100]}...")
+    
+    retrieved = retrieve_context(query, chunks, top_k=5)
+    logger.log("RAG_RETRIEVAL", f"Retrieved {len(retrieved)} relevant chunks")
+    
+    # Aggregate context
+    logger.log("CONTEXT_AGGREGATION", "Aggregating cross-platform context")
+    context = aggregate_context(incoming.person_name, resolved, retrieved)
+    
+    console.print(f"\n[bold]Aggregated Context:[/bold]")
+    console.print(f"Sources: {', '.join(context['sources_found'])}")
+    console.print(f"Total messages: {context['total_messages']}")
+    console.print(f"Open commitments: {len(context['open_commitments'])}")
+    
+    # Load tone profile
+    logger.log("TONE_PROFILE", f"Loading tone profile for {incoming.person_name}")
+    tone = get_tone_profile(incoming.person_name)
+    
+    # Generate reply
+    logger.log("REPLY_GENERATION", "Generating reply using Claude")
+    console.print("\n [dim]Generating reply...[/dim]")
+    
+    draft = generate_reply(incoming.text, context, tone, None)
+    
+    console.print(f"\n[bold green]Generated Draft Reply:[/bold green]")
+    console.print(Panel(draft, border_style="green"))
+    
+    # Human feedback
+    logger.log("HUMAN_FEEDBACK", "Awaiting human review")
+    
+    if Confirm.ask("\nWould you like to edit this draft?"):
+        console.print("\n[dim]Paste your edited version (press Enter twice when done):[/dim]")
+        edited_lines = []
+        while True:
+            line = input()
+            if not line:
+                break
+            edited_lines.append(line)
+        
+        edited = "\n".join(edited_lines)
+        
+        if edited.strip():
+            learn_from_user_edit(incoming.person_name, draft, edited)
+            draft = edited
+    
+    logger.log("END", "Demo completed successfully", {
+        "person": incoming.person_name,
+        "sources_used": context['sources_found'],
+        "reply_length": len(draft)
+    })
+    
+    logger.save()
+    
+    console.print("\n [bold green]Demo completed![/bold green]")
 
-    logger.log(
-        step="CHUNKING",
-        message="Built RAG chunks only from resolved person's messages",
-        data=[
-            {
-                "chunk_id": chunk["chunk_id"],
-                "source": chunk["source"],
-                "person_name": chunk["person_name"],
-                "timestamp": chunk["timestamp"],
-                "search_text_preview": chunk["search_text"][:150]
-            }
-            for chunk in chunks
-        ]
-    )
 
-    rag_query = f"""
-    {incoming_message.person_name}
-    {incoming_message.subject}
-    {incoming_message.text}
-    """
-
-    logger.log(
-        step="RAG_QUERY",
-        message="Created retrieval query from incoming message",
-        data={
-            "query": rag_query.strip()
-        }
-    )
-
-    rag_results = retrieve_context(
-        query=rag_query,
-        chunks=chunks,
-        top_k=5
-    )
-
-    logger.log(
-        step="RAG_RETRIEVAL",
-        message="Retrieved most relevant context chunks with similarity scores",
-        data=[
-            {
-                "source": item["source"],
-                "timestamp": item["timestamp"],
-                "person_name": item["person_name"],
-                "rag_score": item["rag_score"],
-                "text": item["text"]
-            }
-            for item in rag_results
-        ]
-    )
-
-    print_rag_results(rag_results)
-
-    aggregated_context = aggregate_context(
-        incoming_message=incoming_message,
-        resolved_matches=resolved_matches,
-        rag_results=rag_results
-    )
-
-    logger.log(
-        step="CONTEXT_AGGREGATION",
-        message="Aggregated relationship history, sources, RAG context, and open commitments",
-        data={
-            "person": aggregated_context["person"],
-            "sources_found": aggregated_context["sources_found"],
-            "open_commitments": aggregated_context["open_commitments"],
-            "relationship_history_count": len(aggregated_context["relationship_history"]),
-            "rag_context_count": len(aggregated_context["rag_context"])
-        }
-    )
-
-    tone_profile = get_tone_profile(incoming_message.person_name)
-
-    logger.log(
-        step="TONE_PROFILE",
-        message="Loaded tone profile for reply generation",
-        data=tone_profile
-    )
-
-    draft_reply = generate_reply(
-        incoming_message=incoming_message,
-        aggregated_context=aggregated_context,
-        tone_profile=tone_profile
-    )
-
-    logger.log(
-        step="REPLY_GENERATION",
-        message="Generated reply draft using aggregated context and tone profile",
-        data={
-            "draft_reply": draft_reply
-        }
-    )
-
-    console.print("\n[bold green]Generated Reply Draft[/bold green]")
-    console.print(Panel(draft_reply, style="green"))
-
-    console.print("\n[bold yellow]Human-in-the-loop Review[/bold yellow]")
-    edited_reply = input(
-        "Edit the reply and press Enter. Or press Enter directly to approve as-is:\n\n"
-    )
-
-    if edited_reply.strip():
-        learned = learn_from_user_edit(
-            person_name=incoming_message.person_name,
-            original_draft=draft_reply,
-            edited_draft=edited_reply
+def gmail_mode():
+    """Run in Gmail live mode"""
+    logger = OperatorLogger()
+    
+    logger.log("START", "Starting operator in GMAIL mode")
+    
+    # Initialize Gmail
+    console.print("\n[bold]Gmail Mode[/bold]")
+    gmail = GmailConnector()
+    
+    try:
+        gmail.authenticate()
+    except Exception as e:
+        console.print(f" Gmail authentication failed: {e}")
+        return
+    
+    # Get latest unread email
+    console.print("\n🔍 Fetching latest unread email...")
+    email = gmail.get_latest_unread_email()
+    
+    if not email:
+        console.print("📭 No unread emails found")
+        return
+    
+    # Load sources
+    logger.log("SOURCE_LOADING", "Loading historical messages")
+    raw_sources = load_all_sources()
+    all_messages = normalize_all_sources(raw_sources)
+    
+    # Normalize incoming email
+    incoming_data = {
+        "id": email["id"],
+        "from_name": email["from_name"],
+        "from_email": email["from_email"],
+        "company": email.get("company"),
+        "subject": email["subject"],
+        "body": email["body"],
+        "timestamp": email["timestamp"]
+    }
+    
+    incoming = normalize_incoming("email", incoming_data)
+    
+    console.print(f"\n[bold]Incoming Email:[/bold]")
+    console.print(f"From: {incoming.person_name} <{incoming.email}>")
+    console.print(f"Subject: {incoming.subject}")
+    console.print(f"Body: {incoming.text[:300]}...")
+    
+    # Resolve person across platforms
+    logger.log("PERSON_RESOLUTION", f"Resolving {incoming.person_name} across all platforms")
+    resolved = resolve_person(incoming, all_messages)
+    
+    if not resolved:
+        resolved = [(incoming, 1.0, ["incoming message"])]
+    
+    console.print(f"\n [bold]Cross-Platform Identity:[/bold]")
+    sources_found = set()
+    for msg, score, reasons in resolved[:5]:
+        sources_found.add(msg.source)
+        console.print(f"  • [{msg.source}] {', '.join(reasons)} (confidence: {score})")
+    
+    # Build chunks and retrieve
+    resolved_messages = [msg for msg, _, _ in resolved]
+    chunks = build_chunks(resolved_messages)
+    
+    query = f"{incoming.subject or ''} {incoming.text}"
+    retrieved = retrieve_context(query, chunks, top_k=5)
+    
+    # Aggregate context
+    context = aggregate_context(incoming.person_name, resolved, retrieved)
+    
+    console.print(f"\n [bold]Context Summary:[/bold]")
+    console.print(f"Sources found: {', '.join(context['sources_found'])}")
+    console.print(f"Total messages: {context['total_messages']}")
+    
+    # Generate reply
+    tone = get_tone_profile(incoming.person_name)
+    
+    console.print("\n[dim]Generating reply with Claude...[/dim]")
+    draft = generate_reply(incoming.text, context, tone, None)
+    
+    console.print(f"\n [bold green]Generated Draft:[/bold green]")
+    console.print(Panel(draft, border_style="green"))
+    
+    # Ask: Draft or Send?
+    console.print("\n[bold]What would you like to do?[/bold]")
+    console.print("1. Create Gmail draft (review before sending)")
+    console.print("2. Send email immediately")
+    console.print("3. Cancel")
+    
+    action = Prompt.ask("Choose", choices=["1", "2", "3"])
+    
+    if action == "1":
+        # Create draft
+        success = gmail.create_draft_reply(
+            thread_id=email["thread_id"],
+            to_email=incoming.email,
+            subject=incoming.subject,
+            body=draft
         )
-
-        logger.log(
-            step="HUMAN_FEEDBACK",
-            message="User edited draft reply",
-            data={
-                "original_draft": draft_reply,
-                "edited_reply": edited_reply,
-                "saved_as_learning_signal": learned
-            }
-        )
-
-        console.print("\n[bold green]Final Edited Reply[/bold green]")
-        console.print(Panel(edited_reply, style="green"))
-
-        if learned:
-            console.print("[cyan]Saved edit as future tone-learning signal.[/cyan]")
-
+        
+        if success:
+            console.print("\n[bold green]Gmail draft created![/bold green]")
+            console.print("Check your Gmail drafts to review and send.")
+            gmail.mark_as_read(email["id"])
+        else:
+            console.print("\nFailed to create draft")
+    
+    elif action == "2":
+        # Send immediately
+        if Confirm.ask("\nSend this email immediately without further review?"):
+            success = gmail.send_reply(
+                thread_id=email["thread_id"],
+                to_email=incoming.email,
+                subject=incoming.subject,
+                body=draft
+            )
+            
+            if success:
+                console.print("\n[bold green]Email sent![/bold green]")
+                gmail.mark_as_read(email["id"])
+            else:
+                console.print("\n[bold red]Failed to send email[/bold red]")
     else:
-        logger.log(
-            step="HUMAN_FEEDBACK",
-            message="User approved draft without edits",
-            data={
-                "approved_reply": draft_reply,
-                "saved_as_learning_signal": False
-            }
-        )
-
-        console.print("[green]Approved draft. MVP does not auto-send.[/green]")
-
-    logger.log(
-        step="END",
-        message="Operator run completed"
-    )
-
+        console.print("\nCancelled")
+    
+    logger.log("END", "Gmail mode completed")
     logger.save()
 
-    console.print(
-        Panel(
-            "Run logs saved to logs/run_logs.json",
-            style="cyan"
-        )
-    )
+
+def sms_mode():
+    """Run in SMS mode"""
+    console.print("\n[bold]SMS Mode[/bold]")
+    console.print("\nSMS mode requires:")
+    console.print("1. Twilio account with phone number")
+    console.print("2. Webhook server running (python -m connectors.twilio_connector)")
+    console.print("3. Ngrok tunnel to expose webhook")
+    console.print("\nFor demo, run: [cyan]python -m connectors.twilio_connector[/cyan]")
+    
+    # TODO: Implement full SMS flow similar to Gmail
+
+
+def main():
+    """Main entry point"""
+    print_header()
+    
+    console.print("\n[bold]Select Mode:[/bold]")
+    console.print("1. Demo Mode (test cases with mock data)")
+    console.print("2. Gmail Mode (live email trigger)")
+    console.print("3. SMS Mode (Twilio webhook)")
+    console.print("4. Exit")
+    
+    choice = Prompt.ask("\nChoose", choices=["1", "2", "3", "4"])
+    
+    if choice == "1":
+        demo_mode()
+    elif choice == "2":
+        gmail_mode()
+    elif choice == "3":
+        sms_mode()
+    else:
+        console.print("\nGoodbye!")
 
 
 if __name__ == "__main__":
-    run_operator()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print("\n\n Interrupted by user")
+        sys.exit(0)

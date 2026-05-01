@@ -1,93 +1,85 @@
-from llm.llm_utils import generate_with_llm
+from typing import Dict
 
 
-def build_reply_prompt(
-    incoming_message,
-    aggregated_context: dict,
-    tone_profile: dict
+def build_prompt(
+    incoming_message: str,
+    context: Dict,
+    tone_profile: Dict
 ) -> str:
-    relationship_history = format_relationship_history(
-        aggregated_context["relationship_history"]
-    )
-
-    rag_context = format_rag_context(
-        aggregated_context["rag_context"]
-    )
-
-    open_commitments = "\n".join(
-        f"- {item}" for item in aggregated_context["open_commitments"]
-    )
-
-    return f"""
-You are a cross-channel relationship-aware reply operator.
-
-Your job:
-Generate a reply to the incoming message using relationship context from email, LinkedIn, WhatsApp, and SMS.
-
-Incoming message:
-Source: {incoming_message.source}
-From: {incoming_message.person_name}
-Text: {incoming_message.text}
-
-Resolved sources:
-{aggregated_context["sources_found"]}
-
-Relationship history:
-{relationship_history}
-
-RAG retrieved context:
-{rag_context}
-
-Open commitments:
-{open_commitments}
-
-Tone profile:
-Style: {tone_profile["style"]}
-Avoid: {tone_profile["avoid"]}
-
-Rules:
-- Do not hallucinate facts.
-- Use only provided context.
-- Keep reply concise.
-- Match user's professional tone.
-- Do not auto-send.
-"""
-
-
-def format_relationship_history(history: list[dict]) -> str:
-    lines = []
-
-    for item in history:
-        lines.append(
-            f"- [{item['timestamp']}] {item['source']} | {item['person_name']}: {item['text']}"
-        )
-
-    return "\n".join(lines)
-
-
-def format_rag_context(results: list[dict]) -> str:
-    lines = []
-
-    for item in results:
-        lines.append(
-            f"- Score {item['rag_score']} | {item['source']} | {item['timestamp']}: {item['text']}"
-        )
-
-    return "\n".join(lines)
+    """Build LLM prompt with all context"""
+    
+    prompt_parts = []
+    
+    # Incoming message
+    prompt_parts.append("## INCOMING MESSAGE")
+    prompt_parts.append(incoming_message)
+    prompt_parts.append("")
+    
+    # Resolved sources
+    prompt_parts.append(f"## RELATIONSHIP CONTEXT")
+    prompt_parts.append(f"Person: {context['person']}")
+    prompt_parts.append(f"Sources found: {', '.join(context['sources_found'])}")
+    prompt_parts.append(f"Total messages: {context['total_messages']}")
+    prompt_parts.append("")
+    
+    # Relationship history
+    if context.get("relationship_history"):
+        prompt_parts.append("## CONVERSATION HISTORY")
+        for item in context["relationship_history"][:5]:
+            prompt_parts.append(
+                f"[{item['source']}] {item['timestamp']} (confidence: {item['confidence']})"
+            )
+            if item.get("subject"):
+                prompt_parts.append(f"Subject: {item['subject']}")
+            prompt_parts.append(f"{item['preview']}")
+            prompt_parts.append("")
+    
+    # RAG context
+    if context.get("rag_context"):
+        prompt_parts.append("## RELEVANT CONTEXT (RAG)")
+        for item in context["rag_context"][:3]:
+            prompt_parts.append(
+                f"[{item['source']}] {item['timestamp']} (relevance: {item['relevance']})"
+            )
+            prompt_parts.append(item["text"])
+            prompt_parts.append("")
+    
+    # Open commitments
+    if context.get("open_commitments"):
+        prompt_parts.append("## OPEN COMMITMENTS")
+        for commitment in context["open_commitments"]:
+            prompt_parts.append(f"- {commitment}")
+        prompt_parts.append("")
+    
+    # Tone profile
+    prompt_parts.append("## TONE GUIDELINES")
+    prompt_parts.append(f"Style: {tone_profile['style']}")
+    prompt_parts.append(f"Avoid: {tone_profile['avoid']}")
+    prompt_parts.append("")
+    
+    # Rules
+    prompt_parts.append("## RULES")
+    prompt_parts.append("1. Use ONLY the context provided above")
+    prompt_parts.append("2. Do NOT hallucinate facts or events")
+    prompt_parts.append("3. Keep reply concise (2-4 sentences)")
+    prompt_parts.append("4. Match professional but warm tone")
+    prompt_parts.append("5. Reference specific past conversations when relevant")
+    prompt_parts.append("6. This is a DRAFT - human will review before sending")
+    prompt_parts.append("")
+    prompt_parts.append("Generate a reply:")
+    
+    return "\n".join(prompt_parts)
 
 
 def generate_reply(
-    incoming_message,
-    aggregated_context: dict,
-    tone_profile: dict
+    incoming_message: str,
+    context: Dict,
+    tone_profile: Dict,
+    llm_function
 ) -> str:
-    prompt = build_reply_prompt(
-        incoming_message,
-        aggregated_context,
-        tone_profile
-    )
-
-    return generate_with_llm(
-        prompt=prompt,
-        person_name=incoming_message.person_name
-     )
+    """Generate reply using LLM"""
+    from llm.llm_utils import generate_with_llm
+    
+    prompt = build_prompt(incoming_message, context, tone_profile)
+    
+    return generate_with_llm(prompt, person_name=context["person"])

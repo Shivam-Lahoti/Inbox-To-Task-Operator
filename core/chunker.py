@@ -1,7 +1,22 @@
+from typing import List, Dict
 from core.schemas import NormalizedMessage
 
 
-def chunk_message(message: NormalizedMessage) -> dict:
+def build_search_text(message: NormalizedMessage) -> str:
+    """Build searchable text from message"""
+    parts = [message.text]
+    
+    if message.subject:
+        parts.append(message.subject)
+    
+    if message.company:
+        parts.append(message.company)
+    
+    return " ".join(parts)
+
+
+def chunk_message(message: NormalizedMessage) -> Dict:
+    """Convert message into a searchable chunk"""
     return {
         "chunk_id": f"{message.source}_{message.id}",
         "source": message.source,
@@ -17,17 +32,6 @@ def chunk_message(message: NormalizedMessage) -> dict:
     }
 
 
-def build_search_text(message: NormalizedMessage) -> str:
-    parts = [
-        message.person_name or "",
-        message.company or "",
-        message.subject or "",
-        message.text or "",
-        message.source or ""
-    ]
-
-    return " ".join(parts)
-
-
-def build_chunks(messages: list[NormalizedMessage]) -> list[dict]:
-    return [chunk_message(message) for message in messages]
+def build_chunks(messages: List[NormalizedMessage]) -> List[Dict]:
+    """Build chunks from list of messages"""
+    return [chunk_message(msg) for msg in messages]

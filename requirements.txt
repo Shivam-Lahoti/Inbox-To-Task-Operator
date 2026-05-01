@@ -2,5 +2,13 @@ rich
 scikit-learn
 numpy
 python-dotenv
-openai
 anthropic
+google-api-python-client
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+twilio
+fastapi
+uvicorn[standard]
+pydantic>=2.0
+python-multipart

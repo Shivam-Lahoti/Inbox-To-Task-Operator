@@ -1,47 +1,47 @@
 [
   {
-    "email_id": "email_001",
-    "from_name": "Ananya Sharma",
-    "from_email": "ananya@healthai.com",
-    "to_email": "shivam@example.com",
-    "subject": "Applied AI Engineer Role",
-    "timestamp": "2026-04-20T10:30:00",
-    "body": "Hi Shivam, thanks for applying. We liked your backend and AI project experience. Are you available this week for a quick intro call?"
+    "id": "email_001",
+    "from_name": "John Doe",
+    "from_email": "john.doe@mediflow.com",
+    "company": "MediFlow",
+    "timestamp": "2024-04-15T10:30:00",
+    "subject": "AI Engineer Role - Follow Up",
+    "body": "Hi Shivam,\n\nThanks for our call last week. I wanted to follow up on the AI Engineer position we discussed. The team was impressed with your RAG pipeline experience.\n\nWould you be available for a technical round next week?\n\nBest,\nJohn"
   },
   {
-    "email_id": "email_002",
-    "from_name": "Ben Matthews",
-    "from_email": "ben@akamai.com",
-    "to_email": "shivam@example.com",
-    "subject": "Junior Engineer Opening",
-    "timestamp": "2026-04-19T09:15:00",
-    "body": "Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services."
+    "id": "email_002",
+    "from_name": "John Doe",
+    "from_email": "john.doe@mediflow.com",
+    "company": "MediFlow",
+    "timestamp": "2024-04-08T14:20:00",
+    "subject": "Introduction - MediFlow AI Team",
+    "body": "Hi Shivam,\n\nI came across your profile and was impressed by your work on DevLens and your experience with LLM pipelines at Northeastern.\n\nWe're building an AI-powered medical documentation system and looking for backend engineers with ML experience.\n\nWould you be open to a quick intro call?\n\nBest,\nJohn Doe\nEngineering Manager, MediFlow"
   },
   {
-    "email_id": "email_003",
-    "from_name": "Ananya Sharma",
-    "from_email": "ananya@healthai.com",
-    "to_email": "shivam@example.com",
-    "subject": "Healthcare AI Backend Discussion",
-    "timestamp": "2026-04-21T16:00:00",
-    "body": "The role is backend-heavy and involves building APIs for healthcare workflows, integrating LLM features, and working with patient-document automation."
+    "id": "email_003",
+    "from_name": "Sarah Lee",
+    "from_email": "sarah@techstartup.io",
+    "company": "TechStartup",
+    "timestamp": "2024-04-20T09:15:00",
+    "subject": "Founding Engineer Opportunity",
+    "body": "Hey Shivam,\n\nWe're a YC-backed startup building AI tools for developers. Saw your DevLens project - really cool concept!\n\nLooking for a founding engineer. H1B sponsorship available. Interested in chatting?\n\nSarah"
   },
   {
-    "email_id": "email_004",
-    "from_name": "Priya Mehta",
-    "from_email": "priya@newstartup.com",
-    "to_email": "shivam@example.com",
-    "subject": "Founding Engineer Role",
-    "timestamp": "2026-04-23T13:15:00",
-    "body": "Hi Shivam, I came across your profile and wanted to discuss a founding engineer role at our startup."
+    "id": "email_004",
+    "from_name": "Michael Reed",
+    "from_email": "m.reed@netwave.com",
+    "company": "NetWave",
+    "timestamp": "2024-04-12T16:45:00",
+    "subject": "Backend Engineer - CDN Team",
+    "body": "Hi Shivam,\n\nYour experience with distributed systems and FastAPI caught my attention. We're hiring for our CDN infrastructure team.\n\nThe role involves building high-throughput APIs and working with Redis/PostgreSQL at scale.\n\nLet me know if you'd like to learn more.\n\nMichael Reed\nSenior Recruiter, NetWave"
   },
   {
-    "email_id": "email_005",
-    "from_name": "Ananya Sharma",
-    "from_email": "ananya@finedge.com",
-    "to_email": "shivam@example.com",
-    "subject": "Fintech Backend Engineer Role",
-    "timestamp": "2026-04-16T15:30:00",
-    "body": "Hi Shivam, we are hiring for a fintech backend engineer role focused on payments, Java, Kafka, and distributed systems."
+    "id": "email_005",
+    "from_name": "John Doe",
+    "from_email": "j.doe@fincore.io",
+    "company": "FinCore",
+    "timestamp": "2024-04-18T11:00:00",
+    "subject": "FinTech Backend Role",
+    "body": "Hi Shivam,\n\nI'm John Doe from FinCore, a fintech company building payment infrastructure.\n\nNoticed your payment processing experience at LTI. We're looking for Java/Spring Boot engineers.\n\nInterested in discussing?\n\nJohn"
   }
 ]

@@ -5,8 +5,9 @@ load_dotenv()
 
 
 def fallback_reply(prompt: str, person_name: str | None = None) -> str:
+    """Fallback reply if LLM fails"""
     name = person_name.split()[0] if person_name else "there"
-
+    
     return (
         f"Hi {name},\n\n"
         "Thanks for reaching out. Yes, that works for me. "
@@ -18,20 +19,17 @@ def fallback_reply(prompt: str, person_name: str | None = None) -> str:
 
 
 def generate_with_provider(prompt: str) -> str:
-    """
-    Generic LLM provider
-    """
-
+    """Generate reply using Anthropic Claude"""
     import anthropic
-
+    
     api_key = os.getenv("ANTHROPIC_API_KEY")
-    model = os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307")
-
+    model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+    
     if not api_key:
-        raise ValueError("Missing ANTHROPIC_API_KEY")
-
+        raise ValueError("Missing ANTHROPIC_API_KEY in .env file")
+    
     client = anthropic.Anthropic(api_key=api_key)
-
+    
     response = client.messages.create(
         model=model,
         max_tokens=300,
@@ -48,14 +46,15 @@ def generate_with_provider(prompt: str) -> str:
             }
         ]
     )
-
+    
     return response.content[0].text.strip()
 
 
 def generate_with_llm(prompt: str, person_name: str | None = None) -> str:
+    """Generate reply with fallback"""
     try:
         return generate_with_provider(prompt)
-
+    
     except Exception as error:
-        print(f"[LLM fallback activated] {type(error).__name__}: {error}")
+        print(f"\n⚠️  [LLM fallback activated] {type(error).__name__}: {error}")
         return fallback_reply(prompt, person_name)

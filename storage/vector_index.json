@@ -1,15 +1,6 @@
-[
-  {
-    "chunk_id": "email_email_002",
-    "source": "email",
-    "person_name": "Ben Matthews",
-    "email": "ben@akamai.com",
-    "phone": null,
-    "handle": null,
-    "company": null,
-    "timestamp": "2026-04-19T09:15:00",
-    "subject": "Junior Engineer Opening",
-    "text": "Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services.",
-    "search_text": "Ben Matthews  Junior Engineer Opening Hi Shivam, we are hiring junior engineers. The role involves Java, Angular, SQL, Docker, and web services. email"
-  }
-]
+{
+  "num_chunks": 1,
+  "sources": [
+    "email"
+  ]
+}

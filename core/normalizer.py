@@ -1,95 +1,92 @@
+from typing import Dict, List
 from core.schemas import NormalizedMessage
 
 
-def normalize_email(raw: dict) -> NormalizedMessage:
+def normalize_email(raw: Dict) -> NormalizedMessage:
+    """Convert email JSON to NormalizedMessage"""
     return NormalizedMessage(
-        id=raw["email_id"],
+        id=raw.get("id", ""),
         source="email",
-        person_name=raw["from_name"],
+        person_name=raw.get("from_name", ""),
         email=raw.get("from_email"),
-        phone=None,
-        handle=None,
-        company=None,
-        timestamp=raw["timestamp"],
-        subject=raw.get("subject"),
-        text=raw["body"]
-    )
-
-
-def normalize_linkedin(raw: dict) -> NormalizedMessage:
-    return NormalizedMessage(
-        id=raw["linkedin_id"],
-        source="linkedin",
-        person_name=raw["profile_name"],
-        email=None,
-        phone=None,
-        handle=raw.get("profile_handle"),
         company=raw.get("company"),
-        timestamp=raw["timestamp"],
-        subject=None,
-        text=raw["message"]
+        timestamp=raw.get("timestamp", ""),
+        subject=raw.get("subject"),
+        text=raw.get("body", "")
     )
 
 
-def normalize_whatsapp(raw: dict) -> NormalizedMessage:
+def normalize_linkedin(raw: Dict) -> NormalizedMessage:
+    """Convert LinkedIn JSON to NormalizedMessage"""
     return NormalizedMessage(
-        id=raw["whatsapp_id"],
+        id=raw.get("id", ""),
+        source="linkedin",
+        person_name=raw.get("from_name", ""),
+        email=raw.get("email"),
+        handle=raw.get("handle"),
+        company=raw.get("company"),
+        timestamp=raw.get("timestamp", ""),
+        subject=None,
+        text=raw.get("message", "")
+    )
+
+
+def normalize_whatsapp(raw: Dict) -> NormalizedMessage:
+    """Convert WhatsApp JSON to NormalizedMessage"""
+    return NormalizedMessage(
+        id=raw.get("id", ""),
         source="whatsapp",
-        person_name=raw["contact_name"],
-        email=None,
+        person_name=raw.get("from_name", ""),
         phone=raw.get("phone"),
-        handle=None,
-        company=None,
-        timestamp=raw["timestamp"],
+        timestamp=raw.get("timestamp", ""),
         subject=None,
-        text=raw["message"]
+        text=raw.get("message", "")
     )
 
 
-def normalize_sms(raw: dict) -> NormalizedMessage:
+def normalize_sms(raw: Dict) -> NormalizedMessage:
+    """Convert SMS JSON to NormalizedMessage"""
     return NormalizedMessage(
-        id=raw["sms_id"],
+        id=raw.get("id", ""),
         source="sms",
-        person_name=raw["contact_name"],
-        email=None,
+        person_name=raw.get("from_name", ""),
         phone=raw.get("phone"),
-        handle=None,
-        company=None,
-        timestamp=raw["timestamp"],
+        timestamp=raw.get("timestamp", ""),
         subject=None,
-        text=raw["message"]
+        text=raw.get("message", "")
     )
 
 
-def normalize_all_sources(raw_sources: dict[str, list[dict]]) -> list[NormalizedMessage]:
+def normalize_all_sources(raw_sources: Dict[str, List[Dict]]) -> List[NormalizedMessage]:
+    """Normalize all messages from all sources"""
     normalized = []
-
-    for item in raw_sources.get("email", []):
-        normalized.append(normalize_email(item))
-
-    for item in raw_sources.get("linkedin", []):
-        normalized.append(normalize_linkedin(item))
-
-    for item in raw_sources.get("whatsapp", []):
-        normalized.append(normalize_whatsapp(item))
-
-    for item in raw_sources.get("sms", []):
-        normalized.append(normalize_sms(item))
-
+    
+    for msg in raw_sources.get("email", []):
+        normalized.append(normalize_email(msg))
+    
+    for msg in raw_sources.get("linkedin", []):
+        normalized.append(normalize_linkedin(msg))
+    
+    for msg in raw_sources.get("whatsapp", []):
+        normalized.append(normalize_whatsapp(msg))
+    
+    for msg in raw_sources.get("sms", []):
+        normalized.append(normalize_sms(msg))
+    
     return normalized
 
 
-def normalize_incoming(source: str, raw: dict) -> NormalizedMessage:
-    if source == "email":
-        return normalize_email(raw)
-
-    if source == "linkedin":
-        return normalize_linkedin(raw)
-
-    if source == "whatsapp":
-        return normalize_whatsapp(raw)
-
-    if source == "sms":
-        return normalize_sms(raw)
-
-    raise ValueError(f"Unsupported incoming source: {source}")
+def normalize_incoming(source: str, raw: Dict) -> NormalizedMessage:
+    """Normalize a single incoming message based on source"""
+    normalizers = {
+        "email": normalize_email,
+        "linkedin": normalize_linkedin,
+        "whatsapp": normalize_whatsapp,
+        "sms": normalize_sms
+    }
+    
+    normalizer = normalizers.get(source)
+    if not normalizer:
+        raise ValueError(f"Unknown source: {source}")
+    
+    return normalizer(raw)
