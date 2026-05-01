@@ -27,13 +27,13 @@
     }
   },
   {
-    "case_id": "case_003_ben_akamai",
-    "description": "Different person: Ben from Akamai should retrieve Java, Angular, SQL, Docker context.",
+    "case_id": "case_003_ben_hypotech",
+    "description": "Different person: Ben from HypoTech should retrieve Java, Angular, SQL, Docker context.",
     "incoming_source": "email",
     "incoming": {
       "email_id": "incoming_003",
       "from_name": "Ben Matthews",
-      "from_email": "ben@akamai.com",
+      "from_email": "ben@hypotech.com",
       "to_email": "shivam@example.com",
       "subject": "Following up on junior engineer role",
       "timestamp": "2026-04-23T10:00:00",

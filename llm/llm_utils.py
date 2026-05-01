@@ -19,7 +19,7 @@ def fallback_reply(prompt: str, person_name: str | None = None) -> str:
 
 def generate_with_provider(prompt: str) -> str:
     """
-    Generic LLM provider call using Anthropic (Claude)
+    Generic LLM provider
     """
 
     import anthropic
