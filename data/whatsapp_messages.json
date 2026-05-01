@@ -1,23 +1,23 @@
 [
   {
-    "whatsapp_id": "whatsapp_001",
-    "contact_name": "Ananya",
-    "phone": "+1-555-123-9999",
-    "timestamp": "2026-04-21T18:45:00",
-    "message": "Hey Shivam, just confirming you are open to healthcare AI roles and backend-heavy work?"
+    "id": "whatsapp_001",
+    "from_name": "John Doe",
+    "phone": "+14155551234",
+    "timestamp": "2024-04-14T18:30:00",
+    "message": "Hey Shivam, following up on our email thread. The hiring manager wants to move fast. Can you do a call this Friday or Monday?"
   },
   {
-    "whatsapp_id": "whatsapp_002",
-    "contact_name": "Ben",
-    "phone": "+1-555-888-2222",
-    "timestamp": "2026-04-20T12:10:00",
-    "message": "The Akamai role is more web services and internet infrastructure focused, so Java and SQL experience matter."
+    "id": "whatsapp_002",
+    "from_name": "John Doe",
+    "phone": "+14155551234",
+    "timestamp": "2024-04-09T20:15:00",
+    "message": "Just sent you a LinkedIn message about MediFlow. Check it out when you get a chance!"
   },
   {
-    "whatsapp_id": "whatsapp_003",
-    "contact_name": "Ananya FinEdge",
-    "phone": "+1-555-777-3333",
-    "timestamp": "2026-04-17T09:30:00",
-    "message": "The fintech role is payments-heavy and involves Kafka, transactions, and backend reliability."
+    "id": "whatsapp_003",
+    "from_name": "Sarah Lee",
+    "phone": "+14155559876",
+    "timestamp": "2024-04-21T12:00:00",
+    "message": "Hey! Our CEO wants to meet you. Are you free for a quick call tomorrow afternoon? Around 2-3 PM?"
   }
 ]
