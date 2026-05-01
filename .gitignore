@@ -42,3 +42,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+#ngrok
+ngrok/
+*.exe

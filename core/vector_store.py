@@ -23,18 +23,33 @@ class SimpleVectorStore:
         self.chunks = chunks
         
         if not chunks:
-            print("⚠️  No chunks to build vector store")
+            print("No chunks to build vector store")
             return
         
         search_texts = [chunk["search_text"] for chunk in chunks]
-        self.vectors = self.vectorizer.fit_transform(search_texts)
         
-        print(f"✅ Built vector store with {len(chunks)} chunks")
+        # Handle empty or very short texts
+        if not any(text.strip() for text in search_texts):
+            print("All search texts are empty, skipping vector build")
+            return
+        
+        try:
+            self.vectors = self.vectorizer.fit_transform(search_texts)
+            print(f" Built vector store with {len(chunks)} chunks")
+        except ValueError as e:
+            # If vocabulary is empty (all stop words), create dummy vectors
+            print(f"Could not build vectors ({e}), using fallback")
+            self.vectors = None
     
     def search(self, query: str, top_k: int = 5) -> List[Dict]:
         """Search for most relevant chunks"""
-        if not self.chunks or self.vectors is None:
+        if not self.chunks:
             return []
+        
+        if self.vectors is None:
+            # Fallback: return all chunks if no vectors
+            print(" No vectors available, returning all chunks")
+            return self.chunks[:top_k]
         
         query_vector = self.vectorizer.transform([query])
         similarities = cosine_similarity(query_vector, self.vectors)[0]

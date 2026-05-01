@@ -53,7 +53,7 @@ def normalize_sms(raw: Dict) -> NormalizedMessage:
         phone=raw.get("phone"),
         timestamp=raw.get("timestamp", ""),
         subject=None,
-        text=raw.get("message", "")
+        text=raw.get("body", raw.get("message", ""))  
     )
 
 
