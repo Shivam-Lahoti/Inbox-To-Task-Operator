@@ -282,16 +282,116 @@ def gmail_mode():
 
 
 def sms_mode():
-    """Run in SMS mode"""
-    console.print("\n[bold]SMS Mode[/bold]")
-    console.print("\nSMS mode requires:")
-    console.print("1. Twilio account with phone number")
-    console.print("2. Webhook server running (python -m connectors.twilio_connector)")
-    console.print("3. Ngrok tunnel to expose webhook")
-    console.print("\nFor demo, run: [cyan]python -m connectors.twilio_connector[/cyan]")
+    """Run in SMS live mode"""
+    logger = OperatorLogger()
     
-    # TODO: Implement full SMS flow similar to Gmail
-
+    logger.log("START", "Starting operator in SMS mode")
+    
+    # Initialize Twilio
+    console.print("\n📱 [bold]SMS Mode[/bold]")
+    
+    try:
+        from connectors.twilio_connector import TwilioConnector
+        twilio = TwilioConnector()
+    except ValueError as e:
+        console.print(f"❌ Twilio configuration error: {e}")
+        console.print("\nMake sure your .env has:")
+        console.print("TWILIO_ACCOUNT_SID=...")
+        console.print("TWILIO_AUTH_TOKEN=...")
+        console.print("TWILIO_PHONE_NUMBER=...")
+        return
+    
+    console.print("\n⚠️  Make sure webhook server is running:")
+    console.print("   python -m connectors.twilio_connector")
+    console.print("\nWaiting for incoming SMS...")
+    console.print("Send a test message to your Twilio number to trigger the operator.\n")
+    
+    # For now, we'll use a manual trigger
+    # In production, this would be event-driven from the webhook
+    
+    console.print("📱 [bold]Manual SMS Test[/bold]")
+    
+    from_phone = Prompt.ask("Enter sender's phone number (e.g., +14155551234)")
+    from_name = Prompt.ask("Enter sender's name (e.g., John Doe)")
+    message_body = Prompt.ask("Enter the SMS message")
+    
+    # Load sources
+    logger.log("SOURCE_LOADING", "Loading historical messages")
+    raw_sources = load_all_sources()
+    all_messages = normalize_all_sources(raw_sources)
+    
+    # Normalize incoming SMS
+    incoming_data = {
+        "id": "sms_live_001",
+        "from_name": from_name,
+        "phone": from_phone,
+        "email": None,
+        "company": None,
+        "timestamp": "",
+        "subject": None,
+        "body": message_body
+    }
+    
+    incoming = normalize_incoming("sms", incoming_data)
+    
+    console.print(f"\n📱 [bold]Incoming SMS:[/bold]")
+    console.print(f"From: {incoming.person_name} ({incoming.phone})")
+    console.print(f"Message: {incoming.text}")
+    
+    # Resolve person across platforms
+    logger.log("PERSON_RESOLUTION", f"Resolving {incoming.person_name} across all platforms")
+    resolved = resolve_person(incoming, all_messages)
+    
+    if not resolved:
+        resolved = [(incoming, 1.0, ["incoming message"])]
+    
+    console.print(f"\n🔍 [bold]Cross-Platform Identity:[/bold]")
+    sources_found = set()
+    for msg, score, reasons in resolved[:5]:
+        sources_found.add(msg.source)
+        console.print(f"  • [{msg.source}] {', '.join(reasons)} (confidence: {score})")
+    
+    # Build chunks and retrieve
+    resolved_messages = [msg for msg, _, _ in resolved]
+    chunks = build_chunks(resolved_messages)
+    
+    query = message_body
+    retrieved = retrieve_context(query, chunks, top_k=5)
+    
+    # Aggregate context
+    context = aggregate_context(incoming.person_name, resolved, retrieved)
+    
+    console.print(f"\n📊 [bold]Context Summary:[/bold]")
+    console.print(f"Sources found: {', '.join(context['sources_found'])}")
+    console.print(f"Total messages: {context['total_messages']}")
+    
+    # Show cross-platform context
+    if len(sources_found) > 1:
+        console.print(f"\n✨ [bold green]Cross-platform intelligence activated![/bold green]")
+        console.print(f"Found context from: {', '.join(sources_found)}")
+    
+    # Generate reply
+    tone = get_tone_profile(incoming.person_name)
+    
+    console.print("\n⏳ [dim]Generating reply with Claude...[/dim]")
+    draft = generate_reply(message_body, context, tone, None)
+    
+    console.print(f"\n📱 [bold green]Generated SMS Reply:[/bold green]")
+    console.print(Panel(draft, border_style="green"))
+    
+    # Ask: Send or Cancel?
+    if Confirm.ask("\nSend this SMS reply?"):
+        success = twilio.send_sms(from_phone, draft)
+        
+        if success:
+            console.print("\n✅ [bold green]SMS sent![/bold green]")
+        else:
+            console.print("\n❌ Failed to send SMS")
+    else:
+        console.print("\n❌ Cancelled")
+    
+    logger.log("END", "SMS mode completed")
+    logger.save()
 
 def main():
     """Main entry point"""

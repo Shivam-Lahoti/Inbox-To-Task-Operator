@@ -1,6 +1,6 @@
 {
   "num_chunks": 1,
   "sources": [
-    "email"
+    "sms"
   ]
 }
