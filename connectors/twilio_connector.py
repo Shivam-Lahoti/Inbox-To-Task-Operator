@@ -2,8 +2,9 @@ import os
 from dotenv import load_dotenv
 from twilio.rest import Client
 from twilio.twiml.messaging_response import MessagingResponse
-from fastapi import FastAPI, Form, Request
+from fastapi import FastAPI, Form, Request, BackgroundTasks
 from typing import Dict
+import asyncio
 
 load_dotenv()
 
@@ -34,56 +35,87 @@ class TwilioConnector:
             return True
         
         except Exception as e:
-            print(f"Error sending SMS: {e}")
+            print(f" Error sending SMS: {e}")
             return False
     
     def parse_incoming_sms(self, form_data: Dict) -> Dict:
         """Parse incoming Twilio webhook data"""
         return {
             "id": form_data.get("MessageSid", ""),
-            "from_name": form_data.get("From", ""),  # Phone number
+            "from_name": form_data.get("From", ""),
             "phone": form_data.get("From", ""),
             "email": None,
             "company": None,
-            "timestamp": "",  # Twilio doesn't provide timestamp in webhook
+            "timestamp": "",
             "subject": None,
-            "body": form_data.get("Body", ""),
-            "source": "sms"
+            "body": form_data.get("Body", "")
         }
 
 
 # FastAPI webhook server
 app = FastAPI()
+
+# Import processor here (after app is created)
+from core.operator_core import MessageProcessor
+
 twilio_connector = TwilioConnector()
+processor = MessageProcessor()
 
 
-# Store for webhook data (in production, use a queue/database)
-latest_sms = None
+def process_sms_background(from_phone: str, from_name: str, body: str):
+    """Process SMS in background"""
+    print(f"\nProcessing SMS from {from_phone}...")
+    
+    # Prepare message data
+    incoming_data = {
+        "id": f"sms_webhook_{from_phone.replace('+', '')}",
+        "from_name": from_name,
+        "phone": from_phone,
+        "body": body,
+        "timestamp": ""
+    }
+    
+    # Define send callback
+    def send_callback(incoming, draft):
+        """Send SMS reply"""
+        return twilio_connector.send_sms(incoming.phone, draft)
+    
+    # Process message
+    result = processor.process_message(
+        source="sms",
+        raw_message=incoming_data,
+        send_callback=send_callback
+    )
+    
+    print(f"\nSMS Processing Complete!")
+    print(f"Risk Level: {result.get('risk_level')}")
+    print(f"Action: {result.get('action')}")
+    print(f"Reply: {result.get('draft', '')[:100]}...")
 
 
 @app.post("/webhook/sms")
 async def receive_sms(
-    request: Request,
+    background_tasks: BackgroundTasks,
     From: str = Form(...),
     Body: str = Form(...),
     MessageSid: str = Form(...)
 ):
-    """Twilio webhook endpoint"""
-    global latest_sms
+    """
+    Twilio webhook endpoint - receives SMS and auto-processes
+    """
     
     print(f"\nIncoming SMS from {From}")
     print(f"Message: {Body}")
     
-    # Parse incoming SMS
-    latest_sms = {
-        "From": From,
-        "Body": Body,
-        "MessageSid": MessageSid
-    }
+    # Extract sender name from phone (or use phone as name)
+    from_name = From  # Can be enhanced with contact lookup
     
-    # Return TwiML response (acknowledge receipt)
+    # Process in background so we can return quickly to Twilio
+    background_tasks.add_task(process_sms_background, From, from_name, Body)
+    
+    # Return TwiML response immediately (acknowledge receipt)
     response = MessagingResponse()
-    response.message("Message received. Processing...")
+    response.message("Processing your message...")
     
     return str(response)
 
@@ -91,26 +123,36 @@ async def receive_sms(
 @app.get("/")
 async def health_check():
     """Health check endpoint"""
-    return {"status": "Twilio webhook server running"}
+    return {
+        "status": "SMS Auto-Processor Active",
+        "message": "Send SMS to Twilio number to trigger auto-processing"
+    }
 
 
-@app.get("/latest-sms")
-async def get_latest_sms():
-    """Get latest received SMS (for testing)"""
-    if latest_sms:
-        return latest_sms
-    return {"message": "No SMS received yet"}
+@app.get("/status")
+async def get_status():
+    """Get processor status"""
+    return {
+        "status": "active",
+        "processed_count": len(processor.processed_ids)
+    }
 
 
 def start_webhook_server(port: int = 8000):
     """Start FastAPI webhook server"""
     import uvicorn
-    print(f"\n🚀 Starting Twilio webhook server on port {port}")
-    print(f"Webhook URL: http://localhost:{port}/webhook/sms")
-    print("\nRemember to expose this with ngrok for Twilio to reach it:")
-    print(f"   ngrok http {port}")
     
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    print("\n" + "="*60)
+    print("SMS AUTO-PROCESSOR WEBHOOK SERVER")
+    print("="*60)
+    print(f"\nWebhook URL: http://localhost:{port}/webhook/sms")
+    print(f"Status: http://localhost:{port}/status")
+    print("\n Make sure ngrok is running:")
+    print(f"   ngrok http {port}")
+    print("\nWhen SMS arrives → Auto-processes → Auto-sends reply")
+    print("="*60 + "\n")
+    
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")
 
 
 # CLI usage
