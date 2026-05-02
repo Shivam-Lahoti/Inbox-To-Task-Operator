@@ -1,9 +1,10 @@
 import sys
 from pathlib import Path
+from time import time
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
-
+import datetime
 from core.logger import OperatorLogger
 from core.source_loader import load_all_sources, load_test_cases
 from core.normalizer import normalize_all_sources, normalize_incoming
@@ -153,14 +154,16 @@ def demo_mode():
 
 
 def gmail_mode():
-    """Run in Gmail live mode"""
-    logger = OperatorLogger()
+    """Run in Gmail live mode with auto-send"""
+    from core.operator_core import MessageProcessor
+    from connectors.gmail_connector import GmailConnector
     
-    logger.log("START", "Starting operator in GMAIL mode")
+    console.print("\n[bold]Gmail Auto-Processor Mode[/bold]")
+    console.print("System will automatically process incoming emails based on risk level.\n")
     
-    # Initialize Gmail
-    console.print("\n[bold]Gmail Mode[/bold]")
+    # Initialize
     gmail = GmailConnector()
+    processor = MessageProcessor()
     
     try:
         gmail.authenticate()
@@ -169,19 +172,19 @@ def gmail_mode():
         return
     
     # Get latest unread email
-    console.print("\n🔍 Fetching latest unread email...")
+    console.print("Checking for unread emails...\n")
     email = gmail.get_latest_unread_email()
     
     if not email:
-        console.print("📭 No unread emails found")
+        console.print(" No unread emails found")
         return
     
-    # Load sources
-    logger.log("SOURCE_LOADING", "Loading historical messages")
-    raw_sources = load_all_sources()
-    all_messages = normalize_all_sources(raw_sources)
+    console.print(f"[bold]New Email Detected[/bold]")
+    console.print(f"From: {email['from_name']} <{email['from_email']}>")
+    console.print(f"Subject: {email['subject']}")
+    console.print(f"Preview: {email['body'][:200]}...\n")
     
-    # Normalize incoming email
+    # Prepare message data
     incoming_data = {
         "id": email["id"],
         "from_name": email["from_name"],
@@ -192,206 +195,102 @@ def gmail_mode():
         "timestamp": email["timestamp"]
     }
     
-    incoming = normalize_incoming("email", incoming_data)
+    # Define send/draft callbacks
+    def send_callback(incoming, draft):
+        """Send email reply"""
+        success = gmail.send_reply(
+            thread_id=email["thread_id"],
+            to_email=incoming.email,
+            subject=incoming.subject,
+            body=draft
+        )
+        if success:
+            gmail.mark_as_read(email["id"])
+        return success
     
-    console.print(f"\n[bold]Incoming Email:[/bold]")
-    console.print(f"From: {incoming.person_name} <{incoming.email}>")
-    console.print(f"Subject: {incoming.subject}")
-    console.print(f"Body: {incoming.text[:300]}...")
-    
-    # Resolve person across platforms
-    logger.log("PERSON_RESOLUTION", f"Resolving {incoming.person_name} across all platforms")
-    resolved = resolve_person(incoming, all_messages)
-    
-    if not resolved:
-        resolved = [(incoming, 1.0, ["incoming message"])]
-    
-    console.print(f"\n [bold]Cross-Platform Identity:[/bold]")
-    sources_found = set()
-    for msg, score, reasons in resolved[:5]:
-        sources_found.add(msg.source)
-        console.print(f"  • [{msg.source}] {', '.join(reasons)} (confidence: {score})")
-    
-    # Build chunks and retrieve
-    resolved_messages = [msg for msg, _, _ in resolved]
-    chunks = build_chunks(resolved_messages)
-    
-    query = f"{incoming.subject or ''} {incoming.text}"
-    retrieved = retrieve_context(query, chunks, top_k=5)
-    
-    # Aggregate context
-    context = aggregate_context(incoming.person_name, resolved, retrieved)
-    
-    console.print(f"\n [bold]Context Summary:[/bold]")
-    console.print(f"Sources found: {', '.join(context['sources_found'])}")
-    console.print(f"Total messages: {context['total_messages']}")
-    
-    # Generate reply
-    tone = get_tone_profile(incoming.person_name)
-    
-    console.print("\n[dim]Generating reply with Claude...[/dim]")
-    draft = generate_reply(incoming.text, context, tone, None)
-    
-    console.print(f"\n [bold green]Generated Draft:[/bold green]")
-    console.print(Panel(draft, border_style="green"))
-    
-    # Ask: Draft or Send?
-    console.print("\n[bold]What would you like to do?[/bold]")
-    console.print("1. Create Gmail draft (review before sending)")
-    console.print("2. Send email immediately")
-    console.print("3. Cancel")
-    
-    action = Prompt.ask("Choose", choices=["1", "2", "3"])
-    
-    if action == "1":
-        # Create draft
+    def draft_callback(incoming, draft):
+        """Create Gmail draft"""
         success = gmail.create_draft_reply(
             thread_id=email["thread_id"],
             to_email=incoming.email,
             subject=incoming.subject,
             body=draft
         )
-        
         if success:
-            console.print("\n[bold green]Gmail draft created![/bold green]")
-            console.print("Check your Gmail drafts to review and send.")
+            console.print(f"\n[bold green]Draft created - check Gmail![/bold green]")
             gmail.mark_as_read(email["id"])
-        else:
-            console.print("\nFailed to create draft")
     
-    elif action == "2":
-        # Send immediately
-        if Confirm.ask("\nSend this email immediately without further review?"):
-            success = gmail.send_reply(
-                thread_id=email["thread_id"],
-                to_email=incoming.email,
-                subject=incoming.subject,
-                body=draft
-            )
-            
-            if success:
-                console.print("\n[bold green]Email sent![/bold green]")
-                gmail.mark_as_read(email["id"])
-            else:
-                console.print("\n[bold red]Failed to send email[/bold red]")
-    else:
-        console.print("\nCancelled")
+    # Process message
+    result = processor.process_message(
+        source="email",
+        raw_message=incoming_data,
+        send_callback=send_callback,
+        draft_callback=draft_callback
+    )
     
-    logger.log("END", "Gmail mode completed")
-    logger.save()
+    # Display result
+    console.print(f"\n[bold]Processing Result:[/bold]")
+    console.print(f"Action: {result.get('action', 'unknown')}")
+    console.print(f"Risk Level: {result.get('risk_level', 'unknown')}")
+    
+    if result.get('draft'):
+        console.print(f"\n[bold]Generated Reply:[/bold]")
+        console.print(Panel(result['draft'], border_style="green"))
 
 
 def sms_mode():
-    """Run in SMS live mode"""
-    logger = OperatorLogger()
+    """Run in SMS manual test mode with auto-send"""
+    from core.operator_core import MessageProcessor
+    from connectors.twilio_connector import TwilioConnector
     
-    logger.log("START", "Starting operator in SMS mode")
+    console.print("\n[bold]SMS Auto-Processor Mode[/bold]")
+    console.print("System will automatically process SMS based on risk level.\n")
     
-    # Initialize Twilio
-    console.print("\n📱 [bold]SMS Mode[/bold]")
-    
+    # Initialize
     try:
-        from connectors.twilio_connector import TwilioConnector
         twilio = TwilioConnector()
+        processor = MessageProcessor()
     except ValueError as e:
-        console.print(f"❌ Twilio configuration error: {e}")
-        console.print("\nMake sure your .env has:")
-        console.print("TWILIO_ACCOUNT_SID=...")
-        console.print("TWILIO_AUTH_TOKEN=...")
-        console.print("TWILIO_PHONE_NUMBER=...")
+        console.print(f"Twilio configuration error: {e}")
         return
     
-    console.print("\n⚠️  Make sure webhook server is running:")
-    console.print("   python -m connectors.twilio_connector")
-    console.print("\nWaiting for incoming SMS...")
-    console.print("Send a test message to your Twilio number to trigger the operator.\n")
-    
-    # For now, we'll use a manual trigger
-    # In production, this would be event-driven from the webhook
-    
-    console.print("📱 [bold]Manual SMS Test[/bold]")
-    
+    # Manual input for testing
+    console.print("[bold]Manual SMS Test[/bold]\n")
     from_phone = Prompt.ask("Enter sender's phone number (e.g., +14155551234)")
-    from_name = Prompt.ask("Enter sender's name (e.g., John Doe)")
+    from_name = Prompt.ask("Enter sender's name")
     message_body = Prompt.ask("Enter the SMS message")
     
-    # Load sources
-    logger.log("SOURCE_LOADING", "Loading historical messages")
-    raw_sources = load_all_sources()
-    all_messages = normalize_all_sources(raw_sources)
+    console.print(f"\n [bold]Processing SMS...[/bold]\n")
     
-    # Normalize incoming SMS
+    # Prepare message data
     incoming_data = {
-        "id": "sms_live_001",
+        "id": f"sms_test_{int(datetime.datetime.now().timestamp())}",
         "from_name": from_name,
         "phone": from_phone,
-        "email": None,
-        "company": None,
-        "timestamp": "",
-        "subject": None,
-        "body": message_body
+        "body": message_body,
+        "timestamp": ""
     }
     
-    incoming = normalize_incoming("sms", incoming_data)
+    # Define send callback
+    def send_callback(incoming, draft):
+        """Send SMS reply"""
+        return twilio.send_sms(incoming.phone, draft)
     
-    console.print(f"\n📱 [bold]Incoming SMS:[/bold]")
-    console.print(f"From: {incoming.person_name} ({incoming.phone})")
-    console.print(f"Message: {incoming.text}")
+    # Process message
+    result = processor.process_message(
+        source="sms",
+        raw_message=incoming_data,
+        send_callback=send_callback
+    )
     
-    # Resolve person across platforms
-    logger.log("PERSON_RESOLUTION", f"Resolving {incoming.person_name} across all platforms")
-    resolved = resolve_person(incoming, all_messages)
+    # Display result
+    console.print(f"\n[bold]Processing Result:[/bold]")
+    console.print(f"Action: {result.get('action', 'unknown')}")
+    console.print(f"Risk Level: {result.get('risk_level', 'unknown')}")
     
-    if not resolved:
-        resolved = [(incoming, 1.0, ["incoming message"])]
-    
-    console.print(f"\n🔍 [bold]Cross-Platform Identity:[/bold]")
-    sources_found = set()
-    for msg, score, reasons in resolved[:5]:
-        sources_found.add(msg.source)
-        console.print(f"  • [{msg.source}] {', '.join(reasons)} (confidence: {score})")
-    
-    # Build chunks and retrieve
-    resolved_messages = [msg for msg, _, _ in resolved]
-    chunks = build_chunks(resolved_messages)
-    
-    query = message_body
-    retrieved = retrieve_context(query, chunks, top_k=5)
-    
-    # Aggregate context
-    context = aggregate_context(incoming.person_name, resolved, retrieved)
-    
-    console.print(f"\n📊 [bold]Context Summary:[/bold]")
-    console.print(f"Sources found: {', '.join(context['sources_found'])}")
-    console.print(f"Total messages: {context['total_messages']}")
-    
-    # Show cross-platform context
-    if len(sources_found) > 1:
-        console.print(f"\n✨ [bold green]Cross-platform intelligence activated![/bold green]")
-        console.print(f"Found context from: {', '.join(sources_found)}")
-    
-    # Generate reply
-    tone = get_tone_profile(incoming.person_name)
-    
-    console.print("\n⏳ [dim]Generating reply with Claude...[/dim]")
-    draft = generate_reply(message_body, context, tone, None)
-    
-    console.print(f"\n📱 [bold green]Generated SMS Reply:[/bold green]")
-    console.print(Panel(draft, border_style="green"))
-    
-    # Ask: Send or Cancel?
-    if Confirm.ask("\nSend this SMS reply?"):
-        success = twilio.send_sms(from_phone, draft)
-        
-        if success:
-            console.print("\n✅ [bold green]SMS sent![/bold green]")
-        else:
-            console.print("\n❌ Failed to send SMS")
-    else:
-        console.print("\n❌ Cancelled")
-    
-    logger.log("END", "SMS mode completed")
-    logger.save()
+    if result.get('draft'):
+        console.print(f"\n[bold]Generated Reply:[/bold]")
+        console.print(Panel(result['draft'], border_style="green"))
 
 def main():
     """Main entry point"""
