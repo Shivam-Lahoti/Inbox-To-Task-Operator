@@ -7,7 +7,7 @@ from core.schemas import NormalizedMessage
 from core.normalizer import normalize_incoming
 from core.source_loader import load_all_sources
 from core.normalizer import normalize_all_sources
-from core.person_resolution import resolve_person
+from core.person_resolution import resolve_person, get_contact_db
 from core.chunker import build_chunks
 from core.retriever import retrieve_context
 from core.context_aggregator import aggregate_context
@@ -24,7 +24,7 @@ class MessageProcessor:
     def __init__(self):
         self.logger = OperatorLogger()
         self.auto_sender = AutoSender()
-        self.processed_ids = set()  # Track processed message IDs
+        self.processed_ids = set()
     
     def process_message(
         self,
@@ -33,28 +33,15 @@ class MessageProcessor:
         send_callback: callable,
         draft_callback: Optional[callable] = None
     ) -> Dict:
-        """
-        Process incoming message and auto-send based on risk
-        
-        Args:
-            source: "email" or "sms"
-            raw_message: Raw message data
-            send_callback: Function to send the reply
-            draft_callback: Function to create draft (optional)
-        
-        Returns:
-            Processing result with status and details
-        """
+
         
         self.logger.log("START", f"Processing {source} message")
         
-        # Check if already processed
         msg_id = raw_message.get("id", "")
         if msg_id in self.processed_ids:
             self.logger.log("SKIP", f"Message {msg_id} already processed")
             return {"status": "skipped", "reason": "already_processed"}
         
-        # Normalize incoming message
         try:
             incoming = normalize_incoming(source, raw_message)
             self.logger.log("NORMALIZED", f"From {incoming.person_name}", {
@@ -66,19 +53,20 @@ class MessageProcessor:
             self.logger.log("ERROR", f"Normalization failed: {e}")
             return {"status": "error", "stage": "normalization", "error": str(e)}
         
-        # Load historical sources
         self.logger.log("LOADING_SOURCES", "Loading historical messages")
         raw_sources = load_all_sources()
         all_messages = normalize_all_sources(raw_sources)
         
-        # Resolve person across platforms
+        # ENRICH incoming message early (extract name, link identifiers)
+        db = get_contact_db()
+        incoming = db.enrich(incoming)
+        
         self.logger.log("RESOLVING_IDENTITY", f"Resolving {incoming.person_name}")
         resolved = resolve_person(incoming, all_messages)
         
         if not resolved:
             resolved = [(incoming, 1.0, ["incoming message"])]
         
-        # Calculate identity confidence
         identity_confidence = resolved[0][1] if resolved else 0.0
         sources_found = list(set(msg.source for msg, _, _ in resolved))
         
@@ -87,14 +75,12 @@ class MessageProcessor:
             "matches": len(resolved)
         })
         
-        # Build chunks and retrieve context
         resolved_messages = [msg for msg, _, _ in resolved]
         chunks = build_chunks(resolved_messages)
         
         query = f"{incoming.subject or ''} {incoming.text}"
         retrieved = retrieve_context(query, chunks, top_k=5)
         
-        # Aggregate context
         context = aggregate_context(incoming.person_name, resolved, retrieved)
         
         self.logger.log("CONTEXT_AGGREGATED", "Context ready", {
@@ -102,7 +88,6 @@ class MessageProcessor:
             "total_messages": context['total_messages']
         })
         
-        # Assess risk
         risk_level, risk_reasons = assess_message_risk(
             incoming,
             identity_confidence,
@@ -114,7 +99,6 @@ class MessageProcessor:
             "reasons": risk_reasons
         })
         
-        # Generate reply
         self.logger.log("GENERATING_REPLY", "Calling Claude API")
         tone = get_tone_profile(incoming.person_name)
         
@@ -124,9 +108,6 @@ class MessageProcessor:
         except Exception as e:
             self.logger.log("ERROR", f"Reply generation failed: {e}")
             return {"status": "error", "stage": "generation", "error": str(e)}
-        
-        # Decide: auto-send, buffer, or draft
-        should_send, buffer_seconds = should_auto_send(risk_level)
         
         result = {
             "status": "processed",
@@ -138,8 +119,9 @@ class MessageProcessor:
             "identity_confidence": identity_confidence
         }
         
+        should_send, buffer_seconds = should_auto_send(risk_level)
+        
         if not should_send:
-            # HIGH RISK - Draft only
             self.logger.log("DRAFT_ONLY", "High risk - creating draft for review")
             
             if draft_callback:
@@ -149,11 +131,10 @@ class MessageProcessor:
                 result["action"] = "draft_required"
             
         elif buffer_seconds > 0:
-            # MEDIUM RISK - Send with buffer
             self.logger.log("BUFFER_SEND", f"Medium risk - {buffer_seconds}s buffer")
             
             def countdown_callback(remaining):
-                print(f"⏱️  Sending in {remaining} seconds... (Press Ctrl+C to cancel)")
+                print(f"Sending in {remaining} seconds... (Press Ctrl+C to cancel)")
             
             def send_function():
                 return send_callback(incoming, draft)
@@ -167,7 +148,6 @@ class MessageProcessor:
             result["action"] = "sent_with_buffer" if success else "cancelled"
             
         else:
-            # LOW RISK - Send immediately
             self.logger.log("IMMEDIATE_SEND", "Low risk - sending immediately")
             
             def send_function():
@@ -176,8 +156,23 @@ class MessageProcessor:
             success = send_immediately(send_function)
             result["action"] = "sent_immediately" if success else "send_failed"
         
-        # Mark as processed
         self.processed_ids.add(msg_id)
+        
+        # SAVE MESSAGE TO HISTORY - Real-time RAG learning
+        # Save the enriched incoming message (with extracted name)
+        if result.get('action') in ['sent_immediately', 'sent_with_buffer', 'draft_created']:
+            try:
+                from core.message_storage import MessageStorage
+                from core.person_resolution import reload_contact_db
+                
+                storage = MessageStorage()
+                saved = storage.save_message(incoming)
+                
+                if saved:
+                    reload_contact_db()
+                    print("[STORAGE] Message saved, contact DB reloaded")
+            except Exception as e:
+                print(f"[STORAGE] Save failed: {e}")
         
         self.logger.log("END", f"Processing complete - {result['action']}")
         self.logger.save()

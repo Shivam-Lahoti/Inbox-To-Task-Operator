@@ -1,10 +1,47 @@
+import re
 from difflib import SequenceMatcher
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from core.schemas import NormalizedMessage
 
 
-# Auto-learning contact database
 _contact_db = None
+
+
+def extract_name_from_text(text: str) -> Optional[str]:
+    """Extract name from phrases like 'This is John' or 'It's Sarah here'"""
+    
+    print(f"[NAME_EXTRACT] Trying to extract name from: '{text[:100]}'")
+    print(f"[NAME_EXTRACT] Text repr: {repr(text[:100])}")  # See exact characters
+    
+    patterns = [
+        r"(?:this|this)\s+is\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+        r"(?:it'?s|its)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+        r"(?:i'?m|im)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+        r"(?:my\s+name\s+is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)",
+        r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+here",
+        r"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+from"
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)  # Add case-insensitive flag
+        if match:
+            name = match.group(1).strip()
+            # Capitalize properly
+            name = ' '.join(word.capitalize() for word in name.split())
+            
+            if len(name) > 2 and name.lower() not in ["hey", "hello", "hi", "the", "this", "that"]:
+                print(f"[NAME_EXTRACT] SUCCESS: Extracted '{name}' using pattern '{pattern}'")
+                return name
+    
+    print(f"[NAME_EXTRACT] FAILED: No name found")
+    return None
+
+
+def reload_contact_db():
+    """Force reload of contact database"""
+    global _contact_db
+    _contact_db = None
+    return get_contact_db()
 
 
 def get_contact_db():
@@ -19,7 +56,7 @@ class ContactDatabase:
     """Auto-learning contact database from message history"""
     
     def __init__(self):
-        self.contacts = {}  # identifier -> contact info
+        self.contacts = {}
         self._build_from_history()
     
     def _build_from_history(self):
@@ -31,13 +68,11 @@ class ContactDatabase:
             raw_sources = load_all_sources()
             all_messages = normalize_all_sources(raw_sources)
             
-            # Group messages by person name
             person_data = {}
             
             for msg in all_messages:
                 key = msg.person_name.lower().strip()
                 
-                # Skip invalid keys
                 if not key or key in ["", "unknown"]:
                     continue
                 
@@ -56,7 +91,6 @@ class ContactDatabase:
                 if msg.company:
                     person_data[key]["companies"].add(msg.company)
             
-            # Build cross-reference lookup maps
             for person_info in person_data.values():
                 identifiers = list(person_info["emails"]) + list(person_info["phones"])
                 
@@ -67,57 +101,97 @@ class ContactDatabase:
                         "phones": list(person_info["phones"]),
                         "companies": list(person_info["companies"])
                     }
-            
-            print(f"✅ Contact database: {len(self.contacts)} identifiers linked")
         
         except Exception as e:
-            print(f"⚠️  Contact database build failed: {e}")
+            pass
     
     def enrich(self, message: NormalizedMessage) -> NormalizedMessage:
-        """Enrich message with cross-channel contact data"""
+        """Enrich message with cross-channel contact data using multi-signal matching"""
         
-        # Try lookup by email
+        # Extract name from SMS text if needed
+        if message.source in ["sms", "whatsapp"] and message.person_name == message.phone:
+            print(f"[ENRICH] Attempting name extraction for {message.phone}")
+            extracted_name = extract_name_from_text(message.text)
+            if extracted_name:
+                message.person_name = extracted_name
+                print(f"[ENRICH] Updated person_name to: '{extracted_name}'")
+            else:
+                print(f"[ENRICH] No name extracted, keeping phone as name")
+        
+        # Try exact identifier match first (strongest signal)
         if message.email:
             lookup_key = message.email.lower()
             if lookup_key in self.contacts:
                 contact = self.contacts[lookup_key]
                 
-                # Add phone if missing
                 if not message.phone and contact["phones"]:
                     message.phone = contact["phones"][0]
                 
-                # Use proper name if currently using email/phone as name
                 if message.person_name in [message.email, message.phone, lookup_key]:
                     message.person_name = contact["name"]
                 
+                print(f"[ENRICH] Matched by email: {message.person_name}")
                 return message
         
-        # Try lookup by phone
         if message.phone:
             if message.phone in self.contacts:
                 contact = self.contacts[message.phone]
                 
-                # Add email if missing
                 if not message.email and contact["emails"]:
                     message.email = contact["emails"][0]
                 
-                # Use proper name if currently using phone as name
                 if message.person_name == message.phone:
                     message.person_name = contact["name"]
                 
+                print(f"[ENRICH] Matched by phone: {message.person_name}")
                 return message
+        
+        # Fuzzy name match ONLY if exactly ONE match (prevents wrong-person linking)
+        if message.person_name and message.person_name not in [message.email, message.phone]:
+            matches = []
+            
+            for identifier, contact in self.contacts.items():
+                msg_name_lower = message.person_name.lower()
+                contact_name_lower = contact["name"].lower()
+                
+                # Check partial match
+                is_partial = (
+                    msg_name_lower in contact_name_lower or 
+                    contact_name_lower in msg_name_lower
+                )
+                
+                # Check similarity
+                name_sim = similarity(message.person_name, contact["name"])
+                
+                if is_partial or name_sim > 0.70:
+                    matches.append((identifier, contact, name_sim))
+            
+            # ONLY link if exactly ONE match found
+            if len(matches) == 1:
+                identifier, contact, score = matches[0]
+                if not message.email and contact["emails"]:
+                    message.email = contact["emails"][0]
+                if not message.phone and contact["phones"]:
+                    message.phone = contact["phones"][0]
+                message.person_name = contact["name"]
+                print(f"[CONTACT_MATCH] Linked '{message.person_name}' via name (confidence: {score:.2f})")
+            
+            elif len(matches) > 1:
+                print(f"[CONTACT_MATCH] Multiple matches for '{message.person_name}' - skipping to avoid wrong-person link")
+            
+            elif len(matches) == 0:
+                print(f"[ENRICH] No matches found for '{message.person_name}'")
         
         return message
 
-
-def similarity(a: str | None, b: str | None) -> float:
+def similarity(a: str, b: str) -> float:
     """Calculate string similarity ratio"""
     if not a or not b:
         return 0.0
     return SequenceMatcher(None, a.lower(), b.lower()).ratio()
 
 
-def email_domain(email: str | None) -> str | None:
+def email_domain(email: str) -> str:
     """Extract domain from email"""
     if not email or "@" not in email:
         return None
@@ -128,15 +202,8 @@ def resolve_person(
     incoming: NormalizedMessage,
     all_messages: List[NormalizedMessage]
 ) -> List[Tuple[NormalizedMessage, float, List[str]]]:
-    """
-    Resolve which historical messages belong to the same person as incoming message.
+    """Resolve which historical messages belong to the same person"""
     
-    Auto-enriches messages with cross-channel contact data before matching.
-    
-    Returns: List of (message, confidence_score, reasons)
-    """
-    
-    # Auto-enrich with contact database
     db = get_contact_db()
     incoming = db.enrich(incoming)
     all_messages = [db.enrich(msg) for msg in all_messages]
@@ -147,7 +214,6 @@ def resolve_person(
         score = 0.0
         reasons = []
         
-        # Strong identity signals
         if incoming.email and msg.email and incoming.email.lower() == msg.email.lower():
             score += 1.0
             reasons.append("same email")
@@ -160,7 +226,6 @@ def resolve_person(
             score += 0.9
             reasons.append("same handle")
         
-        # Medium signals
         if incoming.company and msg.company and incoming.company.lower() == msg.company.lower():
             score += 0.45
             reasons.append("same company")
@@ -172,7 +237,6 @@ def resolve_person(
             score += 0.35
             reasons.append("same email domain")
         
-        # Weak signal - name similarity
         name_score = similarity(incoming.person_name, msg.person_name)
         
         if name_score >= 0.9:
@@ -182,7 +246,6 @@ def resolve_person(
             score += 0.15
             reasons.append("partially similar name")
         
-        # Only include if we have strong identity signal
         strong_identity_signal = any(
             reason in reasons
             for reason in [

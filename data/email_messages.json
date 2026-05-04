@@ -43,5 +43,15 @@
     "timestamp": "2024-04-18T11:00:00",
     "subject": "FinTech Backend Role",
     "body": "Hi Shivam,\n\nI'm John Doe from FinCore, a fintech company building payment infrastructure.\n\nNoticed your payment processing experience at LTI. We're looking for Java/Spring Boot engineers.\n\nInterested in discussing?\n\nJohn"
+  },
+  {
+    "id": "19df25b779b5e8da",
+    "from_name": "Suzy",
+    "from_email": "suzykim.2821@gmail.com",
+    "company": null,
+    "timestamp": "Mon, 4 May 2026 02:39:20 -0700",
+    "subject": "Following up Startup Opportunity",
+    "body": "Hi Shivam,\r\n\r\nThis is Suzy- I texted you earlier about the DevLens project. I wanted to\r\nsend more details via email. We're a seed-stage startup building AI-powered\r\ndeveloper tools. H1B sponsorship available. Our tech stack: Python,\r\nFastAPI, PostgreSQL, LLMs (similar to what you built). Would Tuesday or\r\nWednesday work for a quick intro call?\r\n\r\n Best,\r\nSuzy\r\n",
+    "phone": "+18573816434"
   }
 ]
