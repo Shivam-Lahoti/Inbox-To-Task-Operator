@@ -12,5 +12,21 @@
     "phone": "+16505552345",
     "timestamp": "2024-04-12T19:30:00",
     "message": "Hi Shivam, this is Michael from NetWave. Just sent you an email about our backend role. Let me know if interested!"
+  },
+  {
+    "id": "sms_18573816434_1777887396",
+    "from_name": "Suzy",
+    "phone": "+18573816434",
+    "timestamp": "2026-05-04T02:36:36.463264",
+    "message": "This is Suzy ",
+    "email": "suzykim.2821@gmail.com"
+  },
+  {
+    "id": "sms_18573816434_1777887653",
+    "from_name": "Suzy",
+    "phone": "+18573816434",
+    "timestamp": "2026-05-04T02:40:53.730122",
+    "message": "Quick follow up on mail Tuesday 2 pm?",
+    "email": "suzykim.2821@gmail.com"
   }
 ]
